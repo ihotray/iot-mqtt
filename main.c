@@ -15,7 +15,7 @@ static void usage(const char *prog) {
             "  -L ADDR   - listening address for mqtts communication, default: '%s'\n"
             "  -C CA     - ca content or file path for mqtts communication, default: '%s'\n"
             "  -c CERT   - cert content or file path for mqtts communication, default: '%s'\n"
-            "  -K KEY    - cert key content or file path for mqtts communication, default: '%s'\n"
+            "  -k KEY    - cert key content or file path for mqtts communication, default: '%s'\n"
             "  -e 0|1    - mqtts enable, default: 1\n"
             "  -v LEVEL  - debug level, from 0 to 4, default: %d\n",
             MG_VERSION, prog, MQTT_LISTEN_ADDR, MQTTS_LISTEN_ADDR, CA, CERT, KEY, MG_LL_INFO);
@@ -45,7 +45,7 @@ int main(int argc, char *argv[]) {
             opts.mqtts_ca = argv[++i];
         }  else if (strcmp(argv[i], "-c") == 0) {
             opts.mqtts_cert = argv[++i];
-        }  else if (strcmp(argv[i], "-K") == 0) {
+        }  else if (strcmp(argv[i], "-k") == 0) {
             opts.mqtts_certkey = argv[++i];
         } else if (strcmp(argv[i], "-e") == 0) {
             opts.mqtts_enable = atoi(argv[++i]);
