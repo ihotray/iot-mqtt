@@ -2,47 +2,10 @@
 #include "mqtt.h"
 
 
-static const char *s_ca = "-----BEGIN CERTIFICATE-----\n"
-"MIIDMTCCAhkCFDAPf8BhiI979coTUPtB87KuLJ4QMA0GCSqGSIb3DQEBCwUAMFQx\n"
-"CzAJBgNVBAYTAkFVMRMwEQYDVQQIDApTb21lLVN0YXRlMSEwHwYDVQQKDBhJbnRl\n"
-"cm5ldCBXaWRnaXRzIFB0eSBMdGQxDTALBgNVBAMMBFJPT1QwIBcNMjIxMTA3MDI1\n"
-"NjM0WhgPMjEyMjEwMTQwMjU2MzRaMFQxCzAJBgNVBAYTAkFVMRMwEQYDVQQIDApT\n"
-"b21lLVN0YXRlMSEwHwYDVQQKDBhJbnRlcm5ldCBXaWRnaXRzIFB0eSBMdGQxDTAL\n"
-"xIYX1VjKp9UZTdHEPQCCFPDlq9wXZczs67Rr5XRM5EpzO2OkpOFEla6M6VyMK17S\n"
-"5WddwrUFKq4HmaFSW9TVTfqox42nXnRysq3Y0FeKktiLHy1KMyXYnHloZ3/QD/Vu\n"
-"fWUrsPu5ECwLHrbwtXGeBBqlWXREqOc72bzJHVPi874MggMf/BHBbs6iM5TMSx+N\n"
-"ZUsJZx6tGmEXKQSI6htRC8PqMVnTO4IvKEmU4yHImUKvhzjuZq530VvmF7ZMJBVg\n"
-"Mhf2v1vXXBxCR+xB+r8U2rE/HXzdVcO0oa/zqOnOxzD8n0Rsns1UlcH86Wdaj6x4\n"
-"7hY0aTg=\n"
-"-----END CERTIFICATE-----\n";
+#define CA "/www/iot/certs/ca"
+#define CERT "/www/iot/certs/server.cert"
 
-static const char *s_cert = "-----BEGIN CERTIFICATE-----\n"
-"MIIDMzCCAhsCFDkAgEpMXOjrLNnbytaj/XjCwgs1MA0GCSqGSIb3DQEBCwUAMFQx\n"
-"CzAJBgNVBAYTAkFVMRMwEQYDVQQIDApTb21lLVN0YXRlMSEwHwYDVQQKDBhJbnRl\n"
-"cm5ldCBXaWRnaXRzIFB0eSBMdGQxDTALBgNVBAMMBFJPT1QwIBcNMjIxMTIzMDI0\n"
-"OTA0WhgPMjEyMjEwMzAwMjQ5MDRaMFYxCzAJBgNVBAYTAkFVMRMwEQYDVQQIDApT\n"
-"Jo96rkD25KwpYgTlYW8CAwEAATANBgkqhkiG9w0BAQsFAAOCAQEAhZRJeN60Hsjs\n"
-"gHJ7iEDOGioJ1DlmAC3dKpkbHnQSIwrKt191xJyh6K3z4Zc1KyGWpH9Ivj7AEacm\n"
-"DeRn1TtJf3bA3FbiRNNgEkLJVAR87i93mZ/KOJ6rIocH2Pj4dK2cb5fLDXwX7AhI\n"
-"/7GYIeJuxBTvajy8VPlW0Lrkbc9ADJl0h+MiqPe23kRfkAPGYOB8pH+OTjfz7BO1\n"
-"KrJ1k9GyO6YdX13gnQ9u5eIZTzjI8Tmt1egs+bNfkw903vgkvq6DmI/LfG4YzUMC\n"
-"KvhTgvJVaeoWQe17fK3JMmppfCNzkZlBiiZn4dO0M8B8FtY1fkBDF/P7uMMkE3j7\n"
-"I0VutKd95w==\n"
-"-----END CERTIFICATE-----\n";
-
-static const char *s_certkey = "-----BEGIN RSA PRIVATE KEY-----\n"
-"MIIEowIBAAKCAQEArSM1XBqSPC5LMe0HiFOtPR1MJmXqDg7otJOtPWphUEb5ci6f\n"
-"PGJrn6gF6dtc+bi7BdEvB4kZukDc3U14iZnSwVPO2V+tCuHcIilQ7NJjn0qKJfpl\n"
-"hfdeH/Iw46UFdU7nBv1vRCle5YTAtFXPJLpHAbP1C16zXCpGfcuB/0mOBYGrtDBN\n"
-"3ht1/ezfEskJt072prkMh1kCCRsL6XI8ORZ+htKDa39Uec+RC7cXJemqmrcETLNQ\n"
-"cxX2fDo24d3JsTZvpNkzvEf1LBHgAxPGNwbRDOwrSERi2rdz0tLYeulHTUQrCCN2\n"
-"NfWvaNgJd2RqpROL1YzPlykCgYBoEG//++vWn7ucJwhwCYwDTLjLMGxIdh61Tux5\n"
-"iuN49Tj/Hepd2sOsc3SnYHLGw3LtuX3ziJeHH4YjmyJddgnSC8CzT0r0N1HNHfO4\n"
-"pgeXeHorQQe8zID7+WJb/E1T0hKO8xKpjG3JIZM/+/i/VA81KT/usKAoGUDgRj0W\n"
-"27KbCQKBgAFglZ/jSgcAxORknm4e75eGfExmY7VKF1yCzUBQ1IYoAAhEJQdmEEsj\n"
-"C/YkFnxAyFCFomxQadiWNYy7Z7IyATZ6RlhHqx4wouHGYHXqSk+0iySxiWkJCyYB\n"
-"1PZ5VvU83vu8ciHQi1qZF6qtmwgMS/EhXkWyrDU6KBzWjR2YsUjF\n"
-"-----END RSA PRIVATE KEY-----\n";
+#define KEY "/www/iot/certs/server.key"
 
 
 static void usage(const char *prog) {
@@ -51,9 +14,14 @@ static void usage(const char *prog) {
             "Usage: %s OPTIONS\n"
             "  -l ADDR   - listening address for mqtt communitcation, default: '%s'\n"
             "  -L ADDR   - listening address for mqtts communication, default: '%s'\n"
+            "  -C CA     - ca content or file path for mqtts communication, default: '%s'\n"
+            "  -c CERT   - cert content or file path for mqtts communication, default: '%s'\n"
+            "  -K KEY    - cert key content or file path for mqtts communication, default: '%s'\n"
+            "  -L ADDR   - listening address for mqtts communication, default: '%s'\n"
+            "  -L ADDR   - listening address for mqtts communication, default: '%s'\n"
             "  -e 0|1    - mqtts enable, default: 1\n"
             "  -v LEVEL  - debug level, from 0 to 4, default: %d\n",
-            MG_VERSION, prog, MQTT_LISTEN_ADDR, MQTTS_LISTEN_ADDR, MG_LL_INFO);
+            MG_VERSION, prog, MQTT_LISTEN_ADDR, MQTTS_LISTEN_ADDR, CA, CERT, KEY, MG_LL_INFO);
 
     exit(EXIT_FAILURE);
 }
@@ -64,9 +32,9 @@ int main(int argc, char *argv[]) {
 		.mqtt_listening_address = MQTT_LISTEN_ADDR,
         .mqtts_listening_address = MQTTS_LISTEN_ADDR,
         .mqtts_enable = 1,
-        .mqtts_ca = s_ca,
-        .mqtts_cert = s_cert,
-        .mqtts_certkey = s_certkey,
+        .mqtts_ca = CA,
+        .mqtts_cert = CERT,
+        .mqtts_certkey = KEY,
         .debug_level = MG_LL_INFO
 	};
 
