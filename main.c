@@ -16,7 +16,7 @@ static void usage(const char *prog) {
             "  -C CA     - ca content or file path for mqtts communication, default: '%s'\n"
             "  -c CERT   - cert content or file path for mqtts communication, default: '%s'\n"
             "  -k KEY    - cert key content or file path for mqtts communication, default: '%s'\n"
-            "  -e 0|1    - mqtts enable, default: 1\n"
+            "  -e 0|1    - mqtts enable, default: 0\n"
             "  -v LEVEL  - debug level, from 0 to 4, default: %d\n",
             MG_VERSION, prog, MQTT_LISTEN_ADDR, MQTTS_LISTEN_ADDR, CA, CERT, KEY, MG_LL_INFO);
 
@@ -28,7 +28,7 @@ int main(int argc, char *argv[]) {
     struct mqtt_option opts = {
 		.mqtt_listening_address = MQTT_LISTEN_ADDR,
         .mqtts_listening_address = MQTTS_LISTEN_ADDR,
-        .mqtts_enable = 1,
+        .mqtts_enable = 0,
         .mqtts_ca = CA,
         .mqtts_cert = CERT,
         .mqtts_certkey = KEY,
