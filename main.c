@@ -26,14 +26,14 @@ static void usage(const char *prog) {
 int main(int argc, char *argv[]) {
 
     struct mqtt_option opts = {
-		.mqtt_listening_address = MQTT_LISTEN_ADDR,
+        .mqtt_listening_address = MQTT_LISTEN_ADDR,
         .mqtts_listening_address = MQTTS_LISTEN_ADDR,
         .mqtts_enable = 0,
         .mqtts_ca = CA,
         .mqtts_cert = CERT,
         .mqtts_certkey = KEY,
         .debug_level = MG_LL_INFO
-	};
+    };
 
     // Parse command-line flags
     for (int i = 1; i < argc; i++) {
