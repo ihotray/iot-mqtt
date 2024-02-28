@@ -388,11 +388,10 @@ static void mqtt_cb(struct mg_connection *c, int ev, void *ev_data, void *fn_dat
 static void mqtts_cb(struct mg_connection *c, int ev, void *ev_data, void *fn_data) {
     if (ev == MG_EV_ACCEPT) {
         struct mqtt_private *priv = (struct mqtt_private *)c->mgr->userdata;
-        struct mg_tls_opts opts = {
-            .ca = priv->cfg.opts->mqtts_ca,         // Enable two-way SSL
-            .cert = priv->cfg.opts->mqtts_cert,     // Certificate PEM file
-            .certkey = priv->cfg.opts->mqtts_certkey
-        };
+        struct mg_tls_opts opts = { 0 };
+        opts.ca = priv->cfg.opts->mqtts_ca;         // Enable two-way SSL
+        opts.cert = priv->cfg.opts->mqtts_cert;     // Certificate PEM file
+        opts.certkey = priv->cfg.opts->mqtts_certkey;
         mg_tls_init(c, &opts);
     }
     mqtt_cb(c, ev, ev_data, fn_data);
