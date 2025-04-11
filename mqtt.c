@@ -335,6 +335,10 @@ static void mqtt_cmd_publish_cb(struct mg_connection *c, int ev, void *ev_data, 
         pub_opts.qos = MQTT_QOS, pub_opts.retain = false;
         for (struct mqtt_sub *sub = priv->subs; sub != NULL; sub = sub->next) {
             if (mg_match(mm->topic, sub->topic, NULL)) {
+                if (sub->c->is_tls && sub->c->send.len > 32 * MG_IO_SIZE) { //outside msg, 64KB msg remain left
+                    MG_ERROR(("mqtt connection %llu send buffer full, drop latest msg", sub->c->id));
+                    continue;
+                }
                 mg_mqtt_pub(sub->c, &pub_opts);
             }
         }
