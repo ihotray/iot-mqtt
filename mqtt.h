@@ -38,6 +38,8 @@ struct mqtt_private {
     struct mqtt_config cfg;
     struct mg_mgr mgr;
     struct mqtt_sub *subs;
+    struct mg_connection *mqtt_listener;
+    struct mg_connection *mqtts_listener;
 };
 
 

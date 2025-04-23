@@ -70,6 +70,17 @@ static void mqtt_ev_poll_cb(struct mg_connection *c, int ev, void *ev_data, void
 static void mqtt_ev_close_cb(struct mg_connection *c, int ev, void *ev_data, void *fn_data) {
 
     struct mqtt_private *priv = (struct mqtt_private *)c->mgr->userdata;
+
+    if ( c == priv->mqtt_listener ) {
+        MG_ERROR(("mqtt listener closed"));
+        priv->mqtt_listener = NULL;
+    }
+
+    if ( c == priv->mqtts_listener ) {
+        MG_ERROR(("mqtts listener closed"));
+        priv->mqtts_listener = NULL;
+    }
+
     // Client disconnects. Remove from the subscription list
     for (struct mqtt_sub *next, *sub = priv->subs; sub != NULL; sub = next) {
 
@@ -401,10 +412,35 @@ static void mqtts_cb(struct mg_connection *c, int ev, void *ev_data, void *fn_da
     mqtt_cb(c, ev, ev_data, fn_data);
 }
 
+void timer_mqtt_fn(void *arg) {
+    struct mg_mgr *mgr = (struct mg_mgr *)arg;
+    struct mqtt_private *priv = (struct mqtt_private *)mgr->userdata;
+
+    if ( !priv->mqtt_listener ) {
+        struct mg_connection *c = mg_mqtt_listen(&priv->mgr, priv->cfg.opts->mqtt_listening_address, mqtt_cb, NULL);
+        if (!c) {
+            MG_ERROR(("mqtt listener create failed"));
+        } else {
+            MG_INFO(("mqtt listener create %llu", c->id));
+            priv->mqtt_listener = c;
+        }
+    }
+
+    if ( priv->cfg.opts->mqtts_enable && !priv->mqtts_listener ) {
+        struct mg_connection *c = mg_mqtt_listen(&priv->mgr, priv->cfg.opts->mqtts_listening_address, mqtts_cb, NULL);
+        if (!c) {
+            MG_ERROR(("mqtts listener create failed"));
+        } else {
+            MG_INFO(("mqtts listener create %llu", c->id));
+            priv->mqtts_listener = c;
+        }
+    }
+}
+
 int mqtt_init(void **priv, void *opts) {
 
-    struct mqtt_private *p;
-    struct mg_connection *c;
+    struct mqtt_private *p = NULL;
+    int timer_opts = MG_TIMER_REPEAT | MG_TIMER_RUN_NOW;
 
     signal(SIGINT, signal_handler);   // Setup signal handlers - exist event
     signal(SIGTERM, signal_handler);  // manager loop on SIGINT and SIGTERM
@@ -421,23 +457,12 @@ int mqtt_init(void **priv, void *opts) {
 
     p->mgr.userdata = p;
 
-    c = mg_mqtt_listen(&p->mgr, p->cfg.opts->mqtt_listening_address, mqtt_cb, NULL);
-    if (!c)
-        goto out_err;
-
-    if (p->cfg.opts->mqtts_enable) {
-        c = mg_mqtt_listen(&p->mgr, p->cfg.opts->mqtts_listening_address, mqtts_cb, NULL);
-        if (!c)
-            goto out_err;
-    }
+    mg_timer_add(&p->mgr, 1000, timer_opts, timer_mqtt_fn, &p->mgr);  //1s, repeat broadcast if need
 
     *priv = p;
 
     return 0;
 
-out_err:
-    free(p);
-    return -1;
 }
 
 void mqtt_run(void *handle) {
