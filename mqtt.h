@@ -9,7 +9,7 @@ struct mqtt_option {
     int mqtts_enable;
     const char *mqtts_ca;
     const char *mqtts_cert;
-    const char *mqtts_certkey;
+    const char *mqtts_key;
     int debug_level;
 };
 

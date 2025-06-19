@@ -31,7 +31,7 @@ int main(int argc, char *argv[]) {
         .mqtts_enable = 0,
         .mqtts_ca = CA,
         .mqtts_cert = CERT,
-        .mqtts_certkey = KEY,
+        .mqtts_key = KEY,
         .debug_level = MG_LL_INFO
     };
 
@@ -46,7 +46,7 @@ int main(int argc, char *argv[]) {
         }  else if (strcmp(argv[i], "-c") == 0) {
             opts.mqtts_cert = argv[++i];
         }  else if (strcmp(argv[i], "-k") == 0) {
-            opts.mqtts_certkey = argv[++i];
+            opts.mqtts_key = argv[++i];
         } else if (strcmp(argv[i], "-e") == 0) {
             opts.mqtts_enable = atoi(argv[++i]);
         } else if (strcmp(argv[i], "-v") == 0) {

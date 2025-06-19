@@ -23,7 +23,7 @@ static void mqtt_event_notify(struct mg_connection *c, struct mg_str event_data)
     }
 }
 
-static void mqtt_ev_accept_cb(struct mg_connection *c, int ev, void *ev_data, void *fn_data) {
+static void mqtt_ev_accept_cb(struct mg_connection *c, int ev, void *ev_data) {
 
     if (c->fn_data) {
         MG_ERROR(("bad logic error"));
@@ -42,7 +42,7 @@ static void mqtt_ev_accept_cb(struct mg_connection *c, int ev, void *ev_data, vo
 
 }
 
-static void mqtt_ev_read_cb(struct mg_connection *c, int ev, void *ev_data, void *fn_data) {
+static void mqtt_ev_read_cb(struct mg_connection *c, int ev, void *ev_data) {
 
     if (!c->fn_data)
         return;
@@ -52,7 +52,7 @@ static void mqtt_ev_read_cb(struct mg_connection *c, int ev, void *ev_data, void
 
 }
 
-static void mqtt_ev_poll_cb(struct mg_connection *c, int ev, void *ev_data, void *fn_data) {
+static void mqtt_ev_poll_cb(struct mg_connection *c, int ev, void *ev_data) {
 
     if (!c->fn_data)
         return;
@@ -67,7 +67,7 @@ static void mqtt_ev_poll_cb(struct mg_connection *c, int ev, void *ev_data, void
 
 }
 
-static void mqtt_ev_close_cb(struct mg_connection *c, int ev, void *ev_data, void *fn_data) {
+static void mqtt_ev_close_cb(struct mg_connection *c, int ev, void *ev_data) {
 
     struct mqtt_private *priv = (struct mqtt_private *)c->mgr->userdata;
 
@@ -89,10 +89,10 @@ static void mqtt_ev_close_cb(struct mg_connection *c, int ev, void *ev_data, voi
         if (c != sub->c)
             continue;
 
-        MG_INFO(("unsub %p [%.*s]", c->fd, (int) sub->topic.len, sub->topic.ptr));
+        MG_INFO(("unsub %p [%.*s]", c->fd, (int) sub->topic.len, sub->topic.buf));
         LIST_DELETE(struct mqtt_sub, &priv->subs, sub);
-        if (sub->topic.ptr)
-            free((void*)sub->topic.ptr);
+        if (sub->topic.buf)
+            free((void*)sub->topic.buf);
 
         free(sub);
     }
@@ -104,10 +104,10 @@ static void mqtt_ev_close_cb(struct mg_connection *c, int ev, void *ev_data, voi
 
     struct mqtt_session *s = (struct mqtt_session*)c->fn_data;
 
-    if (s->username.ptr)
-        free((void*)s->username.ptr);
-    if (s->password.ptr)
-        free((void*)s->password.ptr);
+    if (s->username.buf)
+        free((void*)s->username.buf);
+    if (s->password.buf)
+        free((void*)s->password.buf);
 
     free(c->fn_data);
     c->fn_data = NULL;
@@ -116,7 +116,7 @@ static void mqtt_ev_close_cb(struct mg_connection *c, int ev, void *ev_data, voi
 
 }
 
-static void mqtt_cmd_connect_cb(struct mg_connection *c, int ev, void *ev_data, void *fn_data) {
+static void mqtt_cmd_connect_cb(struct mg_connection *c, int ev, void *ev_data) {
 
     int skipped_bytes = 0;
     int data_length_size = 1;
@@ -127,43 +127,43 @@ static void mqtt_cmd_connect_cb(struct mg_connection *c, int ev, void *ev_data, 
         return;
     }
 
-    while (mm->dgram.ptr[1 + data_length_size] != 0) {
+    while (mm->dgram.buf[1 + data_length_size] != 0) {
         data_length_size++;
     }
 
     // Client connects
     if (mm->dgram.len < 9) {
         mg_error(c, "Malformed MQTT frame");
-    } else if (mm->dgram.ptr[1 + data_length_size + 6] != 4) { //only mqtt 3.1.1
-        mg_error(c, "Unsupported MQTT version %d", mm->dgram.ptr[1 + data_length_size + 6]);
+    } else if (mm->dgram.buf[1 + data_length_size + 6] != 4) { //only mqtt 3.1.1
+        mg_error(c, "Unsupported MQTT version %d", mm->dgram.buf[1 + data_length_size + 6]);
     } else {
         struct mqtt_session *s = (struct mqtt_session*)c->fn_data;
         
-        s->keepalive = mg_ntohs(*(uint16_t*)(mm->dgram.ptr +1 + data_length_size + 8)); //keepalive, seconds
+        s->keepalive = mg_ntohs(*(uint16_t*)(mm->dgram.buf +1 + data_length_size + 8)); //keepalive, seconds
 
-        if (mm->dgram.ptr[1 + data_length_size + 7] & 0x80) { //has username
+        if (mm->dgram.buf[1 + data_length_size + 7] & 0x80) { //has username
             //keepalive 2 bytes
             skipped_bytes += 2;
 
             //cid
-            skipped_bytes += 2 + mg_ntohs(*(uint16_t*)(mm->dgram.ptr + 1 + data_length_size + 8 + skipped_bytes));
+            skipped_bytes += 2 + mg_ntohs(*(uint16_t*)(mm->dgram.buf + 1 + data_length_size + 8 + skipped_bytes));
 
-            if (mm->dgram.ptr[1 + data_length_size + 7] & 0x04) {//has will
-                skipped_bytes += 2 + mg_ntohs(*(uint16_t*)(mm->dgram.ptr + 1 + data_length_size + 8 + skipped_bytes)); //will topic
-                skipped_bytes += 2 + mg_ntohs(*(uint16_t*)(mm->dgram.ptr + 1 + data_length_size + 8 + skipped_bytes)); //will message
+            if (mm->dgram.buf[1 + data_length_size + 7] & 0x04) {//has will
+                skipped_bytes += 2 + mg_ntohs(*(uint16_t*)(mm->dgram.buf + 1 + data_length_size + 8 + skipped_bytes)); //will topic
+                skipped_bytes += 2 + mg_ntohs(*(uint16_t*)(mm->dgram.buf + 1 + data_length_size + 8 + skipped_bytes)); //will message
             }
 
-            uint16_t username_len = mg_ntohs(*(uint16_t*)(mm->dgram.ptr + 1 + data_length_size + 8 + skipped_bytes));
-            const char *username_ptr = mm->dgram.ptr + 1 + data_length_size + 8 + 2 + skipped_bytes;
+            uint16_t username_len = mg_ntohs(*(uint16_t*)(mm->dgram.buf + 1 + data_length_size + 8 + skipped_bytes));
+            const char *username_ptr = mm->dgram.buf + 1 + data_length_size + 8 + 2 + skipped_bytes;
             s->username = mg_strdup(mg_str_n(username_ptr, username_len));
 
-            if (mm->dgram.ptr[1 + data_length_size + 7] & 0x40) { //has password
-                skipped_bytes += 2 + mg_ntohs(*(uint16_t*)(mm->dgram.ptr + 1 + data_length_size + 8 + skipped_bytes)); 
-                uint16_t password_len = mg_ntohs(*(uint16_t*)(mm->dgram.ptr + 1 + data_length_size + 8 + skipped_bytes));
-                const char *password_ptr = mm->dgram.ptr + 1 + data_length_size + 8 + 2 + skipped_bytes;
+            if (mm->dgram.buf[1 + data_length_size + 7] & 0x40) { //has password
+                skipped_bytes += 2 + mg_ntohs(*(uint16_t*)(mm->dgram.buf + 1 + data_length_size + 8 + skipped_bytes)); 
+                uint16_t password_len = mg_ntohs(*(uint16_t*)(mm->dgram.buf + 1 + data_length_size + 8 + skipped_bytes));
+                const char *password_ptr = mm->dgram.buf + 1 + data_length_size + 8 + 2 + skipped_bytes;
                 s->password = mg_strdup(mg_str_n(password_ptr, password_len));
             }
-            MG_INFO(("%p username: %.*s, password: %.*s", c->fd, s->username.len, s->username.ptr, s->password.len, s->password.ptr));
+            MG_INFO(("%p username: %.*s, password: %.*s", c->fd, s->username.len, s->username.buf, s->password.len, s->password.buf));
 
             mqtt_event_notify(c, mg_str("connected"));
         }
@@ -177,14 +177,14 @@ static void mqtt_cmd_connect_cb(struct mg_connection *c, int ev, void *ev_data, 
 static size_t mqtt_next_topic(struct mg_mqtt_message *msg,
                                  struct mg_str *topic, uint8_t *qos,
                                  size_t pos) {
-    unsigned char *buf = (unsigned char *) msg->dgram.ptr + pos;
+    unsigned char *buf = (unsigned char *) msg->dgram.buf + pos;
     size_t new_pos;
 
     if (pos >= msg->dgram.len)
         return 0;
 
     topic->len = (size_t) (((unsigned) buf[0]) << 8 | buf[1]);
-    topic->ptr = (char *) buf + 2;
+    topic->buf = (char *) buf + 2;
     new_pos = pos + 2 + topic->len + (qos == NULL ? 0 : 1);
     
     if ((size_t) new_pos > msg->dgram.len)
@@ -202,7 +202,7 @@ static size_t mqtt_next_sub(struct mg_mqtt_message *msg, struct mg_str *topic,
     return mqtt_next_topic(msg, topic, qos == NULL ? &tmp : qos, pos);
 }
 
-static void mqtt_cmd_subscribe_cb(struct mg_connection *c, int ev, void *ev_data, void *fn_data) {
+static void mqtt_cmd_subscribe_cb(struct mg_connection *c, int ev, void *ev_data) {
 
     size_t pos = 4;  // Initial topic offset, where ID ends
     uint8_t qos, resp[256];
@@ -220,13 +220,13 @@ static void mqtt_cmd_subscribe_cb(struct mg_connection *c, int ev, void *ev_data
         sub->qos = qos;
         LIST_ADD_HEAD(struct mqtt_sub, &priv->subs, sub);
         if (c->is_tls) {
-            MG_INFO(("[MQTTS] sub %p [%.*s]", c->fd, (int) sub->topic.len, sub->topic.ptr));
+            MG_INFO(("[MQTTS] sub %p [%.*s]", c->fd, (int) sub->topic.len, sub->topic.buf));
         } else {
-            MG_INFO(("[MQTT] sub %p [%.*s]", c->fd, (int) sub->topic.len, sub->topic.ptr));
+            MG_INFO(("[MQTT] sub %p [%.*s]", c->fd, (int) sub->topic.len, sub->topic.buf));
         }
         // Change '+' to '*' for topic matching using mg_match
         for (size_t i = 0; i < sub->topic.len; i++) {
-            if (sub->topic.ptr[i] == '+') ((char *) sub->topic.ptr)[i] = '*';
+            if (sub->topic.buf[i] == '+') ((char *) sub->topic.buf)[i] = '*';
         }
         resp[num_topics++] = qos;
     }
@@ -238,11 +238,11 @@ static void mqtt_cmd_subscribe_cb(struct mg_connection *c, int ev, void *ev_data
 
 void mqtt_req_handler(struct mg_connection *c, struct mg_str topic, struct mg_str data) {
 
-    cJSON *root = cJSON_ParseWithLength(data.ptr, data.len);
+    cJSON *root = cJSON_ParseWithLength(data.buf, data.len);
     cJSON *method = cJSON_GetObjectItem(root, FIELD_METHOD);
     cJSON *json_resp = NULL;
 
-    struct mg_str pub_topic = mg_str_n(topic.ptr, topic.len - mg_str(IOT_MQTT_TOPIC_POSTFIX).len);
+    struct mg_str pub_topic = mg_str_n(topic.buf, topic.len - mg_str(IOT_MQTT_TOPIC_POSTFIX).len);
     const char *error_msg = NULL, *resp = NULL, *out = NULL;
 
     struct mqtt_private *priv = (struct mqtt_private *)c->mgr->userdata;
@@ -270,11 +270,11 @@ void mqtt_req_handler(struct mg_connection *c, struct mg_str topic, struct mg_st
 
             cJSON *obj = cJSON_CreateObject();
 
-            char *username = mg_mprintf("%.*s", s->username.len, s->username.ptr);
+            char *username = mg_mprintf("%.*s", s->username.len, s->username.buf);
             cJSON_AddItemToObject(obj, "u", cJSON_CreateString(username));
             free(username);
 
-            char *password = mg_mprintf("%.*s", s->password.len, s->password.ptr);
+            char *password = mg_mprintf("%.*s", s->password.len, s->password.buf);
             cJSON_AddItemToObject(obj, "p", cJSON_CreateString(password));
             free(password);
 
@@ -306,7 +306,7 @@ done:
         out = error_msg;
     }
 
-    MG_DEBUG(("pub %s ->  %.*s", out, (int) pub_topic.len, pub_topic.ptr));
+    MG_DEBUG(("pub %s ->  %.*s", out, (int) pub_topic.len, pub_topic.buf));
 
     for (struct mqtt_sub *sub = priv->subs; sub != NULL; sub = sub->next) {
         if (mg_match(pub_topic, sub->topic, NULL)) {
@@ -328,13 +328,13 @@ done:
     }
 }
 
-static void mqtt_cmd_publish_cb(struct mg_connection *c, int ev, void *ev_data, void *fn_data) {
+static void mqtt_cmd_publish_cb(struct mg_connection *c, int ev, void *ev_data) {
 
     struct mg_mqtt_message *mm = (struct mg_mqtt_message *) ev_data;
     struct mqtt_private *priv = (struct mqtt_private *)c->mgr->userdata;
 
     MG_DEBUG(("publish %p [%.*s] -> [%.*s]", c->fd, (int) mm->data.len,
-        mm->data.ptr, (int) mm->topic.len, mm->topic.ptr));
+        mm->data.buf, (int) mm->topic.len, mm->topic.buf));
     if (mg_match(mm->topic, mg_str(IOT_MQTT_TOPIC), NULL)) { //to mqtt server
         MG_INFO(("system msg to mqtt server"));
         mqtt_req_handler(c, mm->topic, mm->data);
@@ -356,60 +356,60 @@ static void mqtt_cmd_publish_cb(struct mg_connection *c, int ev, void *ev_data, 
     }
 }
 
-static void mqtt_cmd_pingreq_cb(struct mg_connection *c, int ev, void *ev_data, void *fn_data) {
+static void mqtt_cmd_pingreq_cb(struct mg_connection *c, int ev, void *ev_data) {
     mg_mqtt_pong(c);
 }
 
-static void mqtt_ev_mqtt_cmd_cb(struct mg_connection *c, int ev, void *ev_data, void *fn_data) {
+static void mqtt_ev_mqtt_cmd_cb(struct mg_connection *c, int ev, void *ev_data) {
     struct mg_mqtt_message *mm = (struct mg_mqtt_message *) ev_data;
     MG_DEBUG(("cmd %d qos %d", mm->cmd, mm->qos));
     switch (mm->cmd) {
         case MQTT_CMD_CONNECT:
-            mqtt_cmd_connect_cb(c, ev, ev_data, fn_data);
+            mqtt_cmd_connect_cb(c, ev, ev_data);
             break;
         case MQTT_CMD_SUBSCRIBE:
-            mqtt_cmd_subscribe_cb(c, ev, ev_data, fn_data);
+            mqtt_cmd_subscribe_cb(c, ev, ev_data);
             break;
         case MQTT_CMD_PUBLISH:
-            mqtt_cmd_publish_cb(c, ev, ev_data, fn_data);
+            mqtt_cmd_publish_cb(c, ev, ev_data);
             break;
         case MQTT_CMD_PINGREQ:
-            mqtt_cmd_pingreq_cb(c, ev, ev_data, fn_data);
+            mqtt_cmd_pingreq_cb(c, ev, ev_data);
             break;
     }
 }
 
-static void mqtt_cb(struct mg_connection *c, int ev, void *ev_data, void *fn_data) {
+static void mqtt_cb(struct mg_connection *c, int ev, void *ev_data) {
     switch (ev) {
         case MG_EV_ACCEPT:
-            mqtt_ev_accept_cb(c, ev, ev_data, fn_data);
+            mqtt_ev_accept_cb(c, ev, ev_data);
             break;
         case MG_EV_READ:
-            mqtt_ev_read_cb(c, ev, ev_data, fn_data);
+            mqtt_ev_read_cb(c, ev, ev_data);
             break;
         case MG_EV_POLL:
-            mqtt_ev_poll_cb(c, ev, ev_data, fn_data);
+            mqtt_ev_poll_cb(c, ev, ev_data);
             break;
         case MG_EV_CLOSE:
-            mqtt_ev_close_cb(c, ev, ev_data, fn_data);
+            mqtt_ev_close_cb(c, ev, ev_data);
             break;
         case MG_EV_MQTT_CMD:
-            mqtt_ev_mqtt_cmd_cb(c, ev, ev_data, fn_data);
+            mqtt_ev_mqtt_cmd_cb(c, ev, ev_data);
             break;
 
     }
 }
 
-static void mqtts_cb(struct mg_connection *c, int ev, void *ev_data, void *fn_data) {
+static void mqtts_cb(struct mg_connection *c, int ev, void *ev_data) {
     if (ev == MG_EV_ACCEPT) {
         struct mqtt_private *priv = (struct mqtt_private *)c->mgr->userdata;
         struct mg_tls_opts opts = { 0 };
-        opts.ca = priv->cfg.opts->mqtts_ca;         // Enable two-way SSL
-        opts.cert = priv->cfg.opts->mqtts_cert;     // Certificate PEM file
-        opts.certkey = priv->cfg.opts->mqtts_certkey;
+        opts.ca = mg_str(priv->cfg.opts->mqtts_ca);         // Enable two-way SSL
+        opts.cert = mg_str(priv->cfg.opts->mqtts_cert);     // Certificate PEM file
+        opts.key = mg_str(priv->cfg.opts->mqtts_key);
         mg_tls_init(c, &opts);
     }
-    mqtt_cb(c, ev, ev_data, fn_data);
+    mqtt_cb(c, ev, ev_data);
 }
 
 void timer_mqtt_fn(void *arg) {
