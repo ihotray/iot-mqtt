@@ -60,7 +60,7 @@ static void mqtt_ev_poll_cb(struct mg_connection *c, int ev, void *ev_data, void
     struct mqtt_session *s = (struct mqtt_session*)c->fn_data;
 
     uint64_t now = mg_millis();
-    if ( s->keepalive && now > s->active && now - s->active > (s->keepalive + 3)*1000) {
+    if ( s->keepalive && now > s->active && now - s->active > (s->keepalive + 12)*1000) {
         MG_INFO(("mqtt connection %llu timeout", c->id));
         c->is_draining = 1;
     }
